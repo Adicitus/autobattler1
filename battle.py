@@ -1,13 +1,51 @@
-class Battler:
-    def __init__(self, name:str, health:int, damage:int) -> None:
-        self.name   = name
+import enum
+
+class StatBlock(dict):
+    def __init__(self, health:int=0, damage:int=0) -> None:
         self.health = health
         self.damage = damage
     
+    def __add__(self, other):
+        copy = self.clone()
+        copy.health += other.health
+        copy.damage += other.damage
+        return copy
+    
+    def __sub__(self, other):
+        copy = self.clone()
+        copy.health -= other.health
+        copy.damage -= other.damage
+        return copy
+    
+    def __eq__(self, other):
+        return self.health == other.health and self.damage == other.damage
+
+    def clone(self):
+        return StatBlock(self.health, self.damage)
+
+class Battler:
+    def __init__(self, name:str, health:int, damage:int) -> None:
+        self.name   = name
+        self.stats  = StatBlock(health, damage)
+    
     def attack(self, allies:list, enemies:list):
         target = enemies[0]
-        target.health -= self.damage
-        return target
+        before = target.stats.clone()
+        target.stats.health -= self.stats.damage
+        after = target.stats.clone()
+        return BattleEvent(BattleEventType.ATTACK, "strike", self, target, before, after)
+        
+class BattleEventType(enum.IntEnum):
+    ATTACK = 0
+
+class BattleEvent:
+    def __init__(self, action_type:BattleEventType, name:str, battler:Battler, target:Battler, before:StatBlock, after:StatBlock) -> None:
+        self.type = action_type
+        self.name = name
+        self.battler = battler
+        self.target = target
+        self.before = before
+        self.after  = after
 
 
     
@@ -34,12 +72,12 @@ class Battle:
         battler = battler_record[1]
         allies  = self.teams[team]
         enemies = self.teams[(team + 1) % len(self.teams)]
-        target = battler.attack(allies=allies, enemies=enemies)
+        action = battler.attack(allies=allies, enemies=enemies)
 
-        if target.health <= 0:
-            self.turn_order.remove(((team + 1) % len(self.teams), target))
-            enemies.remove(target)
+        if action.target.stats.health <= 0:
+            self.turn_order.remove(((team + 1) % len(self.teams), action.target))
+            enemies.remove(action.target)
     
-        return self.current_turn, battler, target
+        return self.current_turn, action
 
         
