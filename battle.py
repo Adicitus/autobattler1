@@ -23,6 +23,28 @@ class StatBlock(dict):
     def clone(self):
         return StatBlock(self.health, self.damage)
 
+# Base class for actions used by battlers.
+class Action:
+    def __init__(self, name:str) -> None:
+        self.name = name
+
+    # Base method used to execute this action, simply returns a copy of the
+    # target StatBlock that should be manipulated by implemented child classes.
+    def perform(self, user:StatBlock, target:StatBlock) -> StatBlock:
+        return target.clone()
+
+# Basic attack action, just reduces the target's health by the user's damage.
+class BasicAttack(Action):
+    def __init__(self) -> None:
+        super().__init__("basic attack")
+    
+    def perform(self, user:StatBlock, target:StatBlock) -> StatBlock:
+        new_target = super().perform(user, target)
+        new_target.health -= user.damage
+        return new_target
+
+BASIC_ATTACK = BasicAttack()
+
 class Battler:
     def __init__(self, name:str, health:int, damage:int) -> None:
         self.name   = name
@@ -31,17 +53,17 @@ class Battler:
     def attack(self, allies:list, enemies:list):
         target = enemies[0]
         before = target.stats.clone()
-        target.stats.health -= self.stats.damage
+        target.stats = BASIC_ATTACK.perform(self.stats, target.stats)
         after = target.stats.clone()
-        return BattleEvent(BattleEventType.ATTACK, "strike", self, target, before, after)
+        return BattleEvent(BattleEventType.ATTACK, BASIC_ATTACK, self, target, before, after)
         
 class BattleEventType(enum.IntEnum):
     ATTACK = 0
 
 class BattleEvent:
-    def __init__(self, action_type:BattleEventType, name:str, battler:Battler, target:Battler, before:StatBlock, after:StatBlock) -> None:
+    def __init__(self, action_type:BattleEventType, action:Action, battler:Battler, target:Battler, before:StatBlock, after:StatBlock) -> None:
         self.type = action_type
-        self.name = name
+        self.action = action
         self.battler = battler
         self.target = target
         self.before = before

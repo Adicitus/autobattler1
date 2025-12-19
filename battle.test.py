@@ -1,7 +1,7 @@
 import unittest
 import random
 
-from battle import BattleEvent, BattleEventType, Battle, Battler, StatBlock
+from battle import BASIC_ATTACK, Action, BattleEvent, BattleEventType, Battle, Battler, StatBlock
 
 class TestBattle(unittest.TestCase):
 
@@ -85,6 +85,8 @@ class TestBattle(unittest.TestCase):
         battle = Battle(team1, team2)
         self.assertEqual(len(battle.turn_order), 2, f"Battle turn order should contain all battlers (2), but contains {len(battle.turn_order)} instead.")
         turn_num, act = battle.next()
+        self.assertIsInstance(act.action, Action, "The action performed in the event should be an Action object.")
+        self.assertEqual(act.action, BASIC_ATTACK, "By default the battlers should only be able to use the BASIC_ATTACK action")
         self.assertEqual(turn_num, battle.current_turn)
         self.assertEqual(turn_num, 1)
         self.assertIsInstance(act, BattleEvent)
@@ -116,7 +118,7 @@ class TestBattle(unittest.TestCase):
         turns = []
 
         print()
-        print("Random 1v1 batle test!")
+        print("Random 1v1 battle test!")
         print(f"On team 1:")
         for b in team1:
             print(f" - {b.name}: {b.stats.health} HP, {b.stats.damage} DMG")
