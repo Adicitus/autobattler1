@@ -61,10 +61,10 @@ class TestCampaign(unittest.TestCase):
         self.assertTrue(flags["tick"])
 
     def test_room_creation_basic(self):
-        Room("Test room", [])
+        Room("Test room")
 
     def test_door_creation(self):
-        room = Room("Test room", [])
+        room = Room("Test room")
         Door("Test door", room)
 
     def test_room_enter(self):
@@ -73,7 +73,7 @@ class TestCampaign(unittest.TestCase):
         }
         def event1(*_):
             flags["event1_triggered"] = True
-        room1 = Room("Test room", [], [CampaignEvent(event1)])
+        room1 = Room("Test room", [CampaignEvent(event1)])
         room1.enter(None)
         self.assertTrue(flags["event1_triggered"])
     
@@ -86,7 +86,7 @@ class TestCampaign(unittest.TestCase):
             flags["door_event_triggered"] = True
         def event2(*_): 
             flags["room_event_triggered"] = True
-        room = Room("Test room", [], [CampaignEvent(event2)])
+        room = Room("Test room", [CampaignEvent(event2)])
         door = Door("Test door", room)
         door.on("enter", CampaignEvent(event1))
         door.enter(None)
@@ -138,21 +138,19 @@ class TestCampaign(unittest.TestCase):
             print(f"{w.name} left the tunnel.")
             state["complete"] = True
 
-        entry_room = Room("Entrance", [Door("Portal", last_room)])
-        entry_room.on("enter", CampaignEvent(enter))
+        entry_room = Room("Entrance", [enter])
         campaign.add_room(entry_room)
 
-        last_room = exit_room
+        last_room = entry_room
 
         for i in range(1, 9):
-            room = Room(f"{i}")
+            room = Room(f"{9-i}")
             room.on("enter", CampaignEvent(lambda r, w: print(f"{w.name} takes a step, {r.name} steps left ({r})...")))
             campaign.add_room(room, last_room)
             last_room = room
         
         
-        exit_room = Room("Exit", [])
-        exit_room.on("enter", CampaignEvent(leave))
+        exit_room = Room("Exit", [leave])
         campaign.add_room(exit_room, last_room)
 
         walker = Walker("Jay", entry_room)

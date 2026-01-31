@@ -93,11 +93,9 @@ class Walker(CampaignAsset):
         self.room = door.enter(self)
 
 class Room(CampaignAsset):
-    def __init__(self, name:str, doors:list=[], events:list=[]) -> None:
+    def __init__(self, name:str, events:list=[]) -> None:
         super().__init__(name)
         self.doors = []
-        for d in doors:
-            self.doors.append(d)
         self.events["enter"] = []
         for e in events:
             self.on("enter", e)
@@ -107,8 +105,8 @@ class Room(CampaignAsset):
         self.doors.append(door)
     
     def connect_to(self, room):
-        door1 = Door(name=f"door to {self.name}", room=self)
-        door2 = Door(name=f"door to {room.name}", room=room)
+        door1 = Door(name=f"door", room=self)
+        door2 = Door(name=f"door", room=room)
         room.add_door(door1)
         self.add_door(door2)
         return (door1, door2)
@@ -120,7 +118,7 @@ class Room(CampaignAsset):
     
 
 class Door(CampaignAsset):
-    def __init__(self, name:str, room:Room) -> None:
+    def __init__(self, name:str="door", room:Room=None) -> None:
         super().__init__(name)
         self.name = name
         self.room = room
