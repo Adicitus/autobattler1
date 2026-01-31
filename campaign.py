@@ -1,3 +1,6 @@
+from os import name
+
+
 class CampaignEvent:
     def __init__(self, callback) -> None:
         self.callback = callback
@@ -89,8 +92,6 @@ class Walker(CampaignAsset):
 
         self.room = door.enter(self)
 
-
-
 class Room(CampaignAsset):
     def __init__(self, name:str, doors:list=[], events:list=[]) -> None:
         super().__init__(name)
@@ -102,6 +103,16 @@ class Room(CampaignAsset):
             self.on("enter", e)
         self.visited = False
     
+    def add_door(self, door):
+        self.doors.append(door)
+    
+    def connect_to(self, room):
+        door1 = Door(name=f"door to {self.name}", room=self)
+        door2 = Door(name=f"door to {room.name}", room=room)
+        room.add_door(door1)
+        self.add_door(door2)
+        return (door1, door2)
+
     def enter(self, walker:Walker):
         self.visited = True
         self.emit("enter", walker)
@@ -117,6 +128,8 @@ class Door(CampaignAsset):
     
     def enter(self, walker:Walker) -> Room:
         self.emit("enter", walker)
+        if self.room == None:
+            return None
         return self.room.enter(walker)
 
 class Campaign:
@@ -127,6 +140,11 @@ class Campaign:
         if asset in self.assets:
             return
         self.assets.append(asset)
+    
+    def add_room(self, room:Room, enter_from:Room = None):
+        self.add_asset(room)
+        if enter_from != None:
+            return room.connect_to(enter_from)
     
     def remove_asset(self, asset:CampaignAsset):
         if asset not in self.assets:

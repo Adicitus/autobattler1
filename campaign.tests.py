@@ -138,23 +138,24 @@ class TestCampaign(unittest.TestCase):
             print(f"{w.name} left the tunnel.")
             state["complete"] = True
 
-        exit_room = Room("Exit", [])
-        exit_room.on("enter", CampaignEvent(leave))
-        campaign.add_asset(exit_room)
+        entry_room = Room("Entrance", [Door("Portal", last_room)])
+        entry_room.on("enter", CampaignEvent(enter))
+        campaign.add_room(entry_room)
 
         last_room = exit_room
 
         for i in range(1, 9):
-            room = Room(f"{i}", [Door("Portal", last_room)])
-            last_room = room
+            room = Room(f"{i}")
             room.on("enter", CampaignEvent(lambda r, w: print(f"{w.name} takes a step, {r.name} steps left ({r})...")))
-            campaign.add_asset(room)
+            campaign.add_room(room, last_room)
+            last_room = room
         
-        entry_room = Room("Entrance", [Door("Portal", last_room)])
-        entry_room.on("enter", CampaignEvent(enter))
-        campaign.add_asset(entry_room)
+        
+        exit_room = Room("Exit", [])
+        exit_room.on("enter", CampaignEvent(leave))
+        campaign.add_room(exit_room, last_room)
 
-        walker = Walker("Jay", entry_room)    
+        walker = Walker("Jay", entry_room)
         entry_room.enter(walker)
         campaign.add_asset(walker)
         while not state["complete"]:
