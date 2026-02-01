@@ -92,9 +92,12 @@ class TestCampaign(unittest.TestCase):
         def event1(*_):
             flags["event1_triggered"] = True
         room1 = Room("Test room", [CampaignEvent(event1)])
-        r = room1.enter(None)
         
+        self.assertEqual(len(room1.walkers), 0)
+        r = room1.enter(None)
+
         self.assertEqual(r, room1)
+        self.assertEqual(len(r.walkers), 1)
         self.assertTrue(flags["event1_triggered"])
     
     def test_door_enter(self):
@@ -106,12 +109,79 @@ class TestCampaign(unittest.TestCase):
             flags["door_event_triggered"] = True
         def event2(*_): 
             flags["room_event_triggered"] = True
+        
         room = Room("Test room", [CampaignEvent(event2)])
         door = Door("Test door", room)
         door.on("enter", CampaignEvent(event1))
-        door.enter(None)
+        r = door.enter(None)
+        self.assertEqual(room, r)
+        self.assertEqual(len(r.walkers), 1)
         self.assertTrue(flags["door_event_triggered"])
         self.assertTrue(flags["room_event_triggered"])
+    
+    def test_door_enter_reject(self):
+        # A false door:
+        door = Door("portal", None)
+        room = door.enter(None)
+        self.assertIsNone(room)
+
+    def test_walker_enter_leave(self):
+        room0 = Room("Room 0")
+        room1 = Room("Room 1")
+        self.assertEqual(len(room0.doors), 0, "A newly created Room shouldn't have any doors")
+        self.assertEqual(len(room0.walkers), 0, "A newly created Room shouldn't contain any Walkers")
+        self.assertEqual(len(room1.doors), 0, "A newly created Room shouldn't have any doors")
+        self.assertEqual(len(room1.walkers), 0, "A newly created Room shouldn't contain any Walkers")
+
+        walker = Walker("Jay", room0)
+        self.assertEqual(walker.room, room0, f"Walker '{walker.name}' should have had its current room set to Room 0 since it is their starting room")
+        self.assertIn(walker, room0.walkers, f"Walker '{walker.name}' should have been added to Room 0 since it is their starting room")
+        
+        room1.enter(walker)
+        self.assertIn(walker, room1.walkers, f"Walker '{walker.name}' should have been added Room 1 when it entered")
+        room0.leave(walker)
+        self.assertEqual(len(room0.walkers), 0, f"Walker '{walker.name}' should have been removed from Room 0 by the .leave method")
+    
+    def test_walker_tick_basic(self):
+        room0 = Room("Room 0")
+        room1 = Room("Room 1")
+        self.assertEqual(len(room0.doors), 0, "A newly created Room shouldn't have any doors")
+        self.assertEqual(len(room0.walkers), 0, "A newly created Room shouldn't contain any Walkers")
+        self.assertEqual(len(room1.doors), 0, "A newly created Room shouldn't have any doors")
+        self.assertEqual(len(room1.walkers), 0, "A newly created Room shouldn't contain any Walkers")
+
+        room0.connect_to(room1)
+        self.assertEqual(len(room0.doors), 1, "Room 0 should have been connected to room 1")
+        self.assertEqual(len(room1.doors), 1, "Room 1 should have been connected to room 0")
+        
+        walker = Walker("Jay", room0)
+        self.assertEqual(walker.room, room0, f"Walker '{walker.name}' should have had its current room set to {room0.name} since it is their starting room")
+        self.assertIn(walker, room0.walkers, f"Walker '{walker.name}' should have been added to {room0.name} since it is their starting room")
+
+        walker.tick()
+        self.assertEqual(walker.room, room1, f"Walker '{walker.name}' should have moved into {room1.name} since it is the only room connected to {room0.name}")
+        self.assertIn(walker, room1.walkers, f"Walker '{walker.name}' should have been added to {room1.name}")
+        self.assertEqual(len(room0.walkers), 0, f"Walker '{walker.name}' should have been removed from {room0.name}")
+
+    def test_walker_tick_custom_select(self):
+        room0 = Room("Room 0")
+        room1 = Room("Room 1")
+        room2 = Room("Room 2")
+
+        room0.connect_to(room1)
+        room0.connect_to(room2)
+
+        walker1 = Walker("Jay", room0, door_select=lambda doors: doors[0])
+        walker2 = Walker("Kay", room0, door_select=lambda doors: doors[-1])
+
+        self.assertIn(walker1, room0.walkers)
+        self.assertIn(walker2, room0.walkers)
+
+        walker1.tick()
+        walker2.tick()
+
+        self.assertIn(walker1, room1.walkers, f"Walker {walker1.name} should have entered {room1.name} since it connects through the first door in {room0.name}")
+        self.assertIn(walker2, room2.walkers, f"Walker {walker1.name} should have entered {room2.name} since it connects through the last door in {room0.name}")
     
     def test_campaign_creation_basic(self):
         Campaign()

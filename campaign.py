@@ -67,9 +67,9 @@ class Walker(CampaignAsset):
     def __init__(self, name: str, starting_room: Room, door_select:Optional[Callable[[Iterable[Door]], Door]]=None) -> None:
         super().__init__(name)
         # Number of ticks between movements
-        self.speed = 1
-        self.ticks_passed = 0
-        self.door_select = door_select
+        self.speed: int = 1
+        self.ticks_passed: int = 0
+        self.door_select: Callable[[Iterable[Door]], Door] = door_select
 
         if self.door_select == None:
             def select(doors:list):
@@ -82,7 +82,8 @@ class Walker(CampaignAsset):
             self.door_select = select
 
         # The room that the walker is currently located in
-        self.room = starting_room
+        self.room: Room = starting_room
+        self.room.enter(self)
 
     def tick(self):
         super().tick()
@@ -92,7 +93,6 @@ class Walker(CampaignAsset):
             return
         self.ticks_passed = 0
 
-        # Just pick the first door for now
         door = self.door_select(self.room.doors)
 
         if door == None:
@@ -101,12 +101,14 @@ class Walker(CampaignAsset):
         new_room = door.enter(self)
         if new_room == None:
             return
+        self.room.leave(self)
         self.room = new_room
 
 class Room(CampaignAsset):
     def __init__(self, name:str, events:list=[]) -> None:
         super().__init__(name)
         self.doors: list[Door] = []
+        self.walkers: list[Walker] = []
         self.events["enter"] = []
         for e in events:
             self.on("enter", e)
@@ -126,11 +128,17 @@ class Room(CampaignAsset):
         self.doors = list(filter(lambda d: d.room != room, self.doors))
 
     def enter(self, walker:Walker) -> Room:
-        
-        self.visited = True
-        self.emit("enter", walker)
+        if walker not in self.walkers:
+            self.visited = True
+            self.walkers.append(walker)
+            self.emit("enter", walker)
         return self
     
+    def leave(self, walker:Walker) -> None:
+        if walker not in self.walkers:
+            return
+        self.walkers.remove(walker)
+        self.emit("leave", walker)
 
 class Door(CampaignAsset):
     def __init__(self, name:str="door", room:Room=None) -> None:
@@ -139,7 +147,7 @@ class Door(CampaignAsset):
         self.room = room
         self.events["enter"] = []
     
-    def enter(self, walker:Walker) -> Optional(Room):
+    def enter(self, walker:Walker) -> Optional[Room]:
         self.emit("enter", walker)
         if self.room == None:
             return None
