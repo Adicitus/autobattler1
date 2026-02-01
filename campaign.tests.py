@@ -5,9 +5,7 @@ from campaign import Campaign, CampaignAsset, Door, Room, CampaignEvent, Walker
 class TestCampaign(unittest.TestCase):
 
     def test_campaignevent_creation(self):
-        def event():
-            pass
-        CampaignEvent(event)
+        CampaignEvent(lambda: True)
     
     def test_campaignevent_start(self):
         flags = {
@@ -66,6 +64,26 @@ class TestCampaign(unittest.TestCase):
     def test_door_creation(self):
         room = Room("Test room")
         Door("Test door", room)
+    
+    def test_room_connect_disconnect(self):
+        room1 = Room("R1")
+        room2 = Room("R1")
+        door1, door2 = room1.connect_to(room2)
+
+        self.assertIsInstance(door1, Door)
+        self.assertIsInstance(door2, Door)
+        self.assertIn(door1, room1.doors)
+        self.assertIn(door2, room2.doors)
+        self.assertEqual(len(room1.doors), 1)
+        self.assertEqual(room1.doors[0].room, room2)
+        self.assertEqual(len(room2.doors), 1)
+        self.assertEqual(room2.doors[0].room, room1)
+
+        room1.disconnect_from(room2)
+        self.assertEqual(len(room1.doors), 0)
+        room2.disconnect_from(room1)
+        self.assertEqual(len(room2.doors), 0)
+
 
     def test_room_enter(self):
         flags = {
@@ -74,7 +92,9 @@ class TestCampaign(unittest.TestCase):
         def event1(*_):
             flags["event1_triggered"] = True
         room1 = Room("Test room", [CampaignEvent(event1)])
-        room1.enter(None)
+        r = room1.enter(None)
+        
+        self.assertEqual(r, room1)
         self.assertTrue(flags["event1_triggered"])
     
     def test_door_enter(self):
@@ -94,7 +114,7 @@ class TestCampaign(unittest.TestCase):
         self.assertTrue(flags["room_event_triggered"])
     
     def test_campaign_creation_basic(self):
-        Campaign([])
+        Campaign()
     
     def test_campaign_add_remove_asset(self):
         campaign = Campaign()
@@ -104,6 +124,31 @@ class TestCampaign(unittest.TestCase):
         campaign.remove_asset(asset)
         self.assertTrue(asset not in campaign.assets)
 
+    def test_campaign_add_remove_room(self):
+        campaign = Campaign()
+        room1 = Room("Room1")
+        room2 = Room("Room2")
+
+        campaign.add_room(room1)
+        self.assertIn(room1, campaign.assets)
+        self.assertIn(room1, campaign.rooms)
+        self.assertEqual(len(room1.doors), 0)
+        
+        campaign.add_room(room2, room1)
+        
+        self.assertIn(room2, campaign.assets)
+        self.assertIn(room2, campaign.rooms)
+        self.assertEqual(len(room1.doors), 1)
+        self.assertEqual(room1.doors[0].room, room2)
+        self.assertEqual(len(room2.doors), 1)
+        self.assertEqual(room2.doors[0].room, room1)
+
+        campaign.remove_asset(room1)
+
+        self.assertNotIn(room1, campaign.assets)
+        self.assertNotIn(room1, campaign.rooms)
+        self.assertEqual(len(room2.doors), 0)
+
     def test_campaign_tick(self):
 
         flags = {
@@ -111,15 +156,10 @@ class TestCampaign(unittest.TestCase):
             "asset_2_tick": False,
         }
 
-        def tick1(*_):
-            flags["asset_1_tick"] = True
-        def tick2(*_):
-            flags["asset_2_tick"] = True
-
         test_asset1 = CampaignAsset("Test asset 1")
-        test_asset1.on("tick", CampaignEvent(tick1))
+        test_asset1.on("tick", lambda *_: flags.__setitem__("asset_1_tick", True))
         test_asset2 = CampaignAsset("Test asset 2")
-        test_asset2.on("tick", CampaignEvent(tick2))
+        test_asset2.on("tick", lambda *_: flags.__setitem__("asset_2_tick", True))
         assets = [test_asset1, test_asset2]
         campaign = Campaign(assets)
         campaign.tick()
@@ -128,7 +168,7 @@ class TestCampaign(unittest.TestCase):
 
     def test_campaign_walk(self):
         
-        campaign = Campaign([])
+        campaign = Campaign()
         state = {
             "complete": False
         }

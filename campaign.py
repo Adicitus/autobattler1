@@ -1,21 +1,29 @@
-from os import name
+from collections.abc import Iterable
+from typing import Any, Callable, Optional, Tuple
 
+# Empty type declarations so that the names can be used in type hints
+class CampaignEvent: pass
+class CampaignAsset: pass
+class Walker: pass
+class Room: pass
+class Door: pass
+class Campaign: pass
 
 class CampaignEvent:
-    def __init__(self, callback) -> None:
-        self.callback = callback
+    def __init__(self, callback:Callable[[CampaignAsset, Any], None]) -> None:
+        self.callback: Callable[[CampaignAsset, Any], None] = callback
 
     def start(self, caller, event_data:any=None):
         self.callback(caller, event_data)
 
 class CampaignAsset:
     def __init__(self, name:str="") -> None:
-        self.name = name
-        self.events = {
+        self.name: str = name
+        self.events: dict[str, list[Callable[[CampaignAsset, Any], None]]] = {
             "tick": []
         }
 
-    def on(self, event_type: str, event: CampaignEvent):
+    def on(self, event_type: str, event: CampaignEvent | Callable[[CampaignAsset, Any], None]) -> None:
         e = event
         if not isinstance(e, CampaignEvent):
             if "__call__" in dir(e):
@@ -31,7 +39,7 @@ class CampaignAsset:
         
         self.events[event_type].append(e)
     
-    def off(self, event_type, event:CampaignEvent):
+    def off(self, event_type, event: CampaignEvent | Callable[[CampaignAsset, Any], None]):
         if event_type not in self.events:
             return
         
@@ -45,7 +53,7 @@ class CampaignAsset:
         self.events[event_type] = list(filter(lambda e: e.callback != event, self.events[event_type]))
 
     
-    def emit(self, event_type:str, event_data:any=None):
+    def emit(self, event_type:str, event_data:Any=None):
         if event_type not in self.events:
             return
         
@@ -56,7 +64,7 @@ class CampaignAsset:
         self.emit("tick")
 
 class Walker(CampaignAsset):
-    def __init__(self, name: str, starting_room, door_select=None, speed=1) -> None:
+    def __init__(self, name: str, starting_room: Room, door_select:Optional[Callable[[Iterable[Door]], Door]]=None) -> None:
         super().__init__(name)
         # Number of ticks between movements
         self.speed = 1
@@ -90,12 +98,15 @@ class Walker(CampaignAsset):
         if door == None:
             return
 
-        self.room = door.enter(self)
+        new_room = door.enter(self)
+        if new_room == None:
+            return
+        self.room = new_room
 
 class Room(CampaignAsset):
     def __init__(self, name:str, events:list=[]) -> None:
         super().__init__(name)
-        self.doors = []
+        self.doors: list[Door] = []
         self.events["enter"] = []
         for e in events:
             self.on("enter", e)
@@ -104,14 +115,18 @@ class Room(CampaignAsset):
     def add_door(self, door):
         self.doors.append(door)
     
-    def connect_to(self, room):
-        door1 = Door(name=f"door", room=self)
-        door2 = Door(name=f"door", room=room)
-        room.add_door(door1)
-        self.add_door(door2)
+    def connect_to(self, room:Room) -> Tuple[Door, Door]:
+        door1 = Door(name=f"door", room=room)
+        door2 = Door(name=f"door", room=self)
+        self.add_door(door1)
+        room.add_door(door2)
         return (door1, door2)
+    
+    def disconnect_from(self, room:Room) -> None:
+        self.doors = list(filter(lambda d: d.room != room, self.doors))
 
-    def enter(self, walker:Walker):
+    def enter(self, walker:Walker) -> Room:
+        
         self.visited = True
         self.emit("enter", walker)
         return self
@@ -124,29 +139,43 @@ class Door(CampaignAsset):
         self.room = room
         self.events["enter"] = []
     
-    def enter(self, walker:Walker) -> Room:
+    def enter(self, walker:Walker) -> Optional(Room):
         self.emit("enter", walker)
         if self.room == None:
             return None
         return self.room.enter(walker)
 
 class Campaign:
-    def __init__(self, assets:list=[]) -> None:
-        self.assets = assets
+    def __init__(self, assets:Iterable[CampaignAsset]=[]) -> None:
+        self.assets: list[CampaignAsset] = []
+        self.rooms: list[Room]  = []
+
+        for asset in assets:
+            self.add_asset(asset)
     
-    def add_asset(self, asset:CampaignAsset):
+    def add_asset(self, asset:CampaignAsset) -> None:
         if asset in self.assets:
             return
+
+        if isinstance(asset, Room):
+            self.rooms.append(asset)
+        
         self.assets.append(asset)
     
-    def add_room(self, room:Room, enter_from:Room = None):
+    def add_room(self, room:Room, enter_from:Room = None) -> None | Tuple[Door, Door]:
         self.add_asset(room)
         if enter_from != None:
             return room.connect_to(enter_from)
     
-    def remove_asset(self, asset:CampaignAsset):
+    def remove_asset(self, asset:CampaignAsset) -> None:
         if asset not in self.assets:
             return
+        
+        if isinstance(asset, Room):
+            for r in self.rooms:
+                r.disconnect_from(asset)
+            self.rooms.remove(asset)
+
         self.assets.remove(asset)
     
     def tick(self):
