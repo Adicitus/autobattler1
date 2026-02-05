@@ -99,6 +99,10 @@ class CampaignAsset:
         self.emit("tick")
 
 class Walker(CampaignAsset):
+    """
+    Base class for walkers on the campaign map, implementing a basic traversal from Room-to-Room.
+    """
+
     def __init__(self, name: str, starting_room: Room, door_select:Optional[Callable[[Iterable[Door]], Door]]=None) -> None:
         super().__init__(name)
         # Number of ticks between movements
@@ -122,7 +126,7 @@ class Walker(CampaignAsset):
 
     def tick(self) -> None:
         """
-        Emits the "tick" event, then tries to enter the door given by self.door_select (unless it returns None).
+        Emits the "tick" event, then tries to enter the door given by self.door_select (unless it is or returns None).
         """
         super().tick()
 
@@ -158,14 +162,14 @@ class Room(CampaignAsset):
         """
         self.doors.append(door)
     
-    def connect_to(self, room:Room) -> Tuple[Door, Door]:
+    def connect_to(self, room:Room, description="door") -> Tuple[Door, Door]:
         """
         Connects this room to another room by creating a new door in each room.
 
         Returns a tuple with the new doors: The first door is the one added to this room, the second is the door added to the other room.
         """
-        door1 = Door(name=f"door", room=room)
-        door2 = Door(name=f"door", room=self)
+        door1 = Door(name=description, room=room)
+        door2 = Door(name=description, room=self)
         self.add_door(door1)
         room.add_door(door2)
         return (door1, door2)
