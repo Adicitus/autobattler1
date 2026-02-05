@@ -1,23 +1,34 @@
 import enum
+from typing import Tuple
+
+# Empty type declarations so that the names can be used in type hints
+class StatBlock: pass
+class Action: pass
+class BasicAttack: pass
+class Battler: pass
+class BattleEventType: pass
+class BattleEvent: pass
+class Battle: pass
+
 
 class StatBlock(dict):
     def __init__(self, health:int=0, damage:int=0) -> None:
         self.health = health
         self.damage = damage
     
-    def __add__(self, other):
+    def __add__(self, other) -> StatBlock:
         copy = self.clone()
         copy.health += other.health
         copy.damage += other.damage
         return copy
     
-    def __sub__(self, other):
+    def __sub__(self, other) -> StatBlock:
         copy = self.clone()
         copy.health -= other.health
         copy.damage -= other.damage
         return copy
     
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return self.health == other.health and self.damage == other.damage
 
     def clone(self):
@@ -50,7 +61,7 @@ class Battler:
         self.name   = name
         self.stats  = StatBlock(health, damage)
     
-    def attack(self, allies:list, enemies:list):
+    def attack(self, allies:list, enemies:list) -> BattleEvent:
         target = enemies[0]
         before = target.stats.clone()
         target.stats = BASIC_ATTACK.perform(self.stats, target.stats)
@@ -85,7 +96,10 @@ class Battle:
         self.current_turn = 0
 
     
-    def next(self):
+    def next(self) -> Tuple[int, Action]:
+        """
+        Attempts to execute the next turn, even if there are no teams or only one remains.
+        """
         turn_num = self.current_turn
         self.current_turn = turn_num + 1
 
@@ -94,12 +108,35 @@ class Battle:
         battler = battler_record[1]
         allies  = self.teams[team]
         enemies = self.teams[(team + 1) % len(self.teams)]
-        action = battler.attack(allies=allies, enemies=enemies)
+        battle_event = battler.attack(allies=allies, enemies=enemies)
 
-        if action.target.stats.health <= 0:
-            self.turn_order.remove(((team + 1) % len(self.teams), action.target))
-            enemies.remove(action.target)
+        if battle_event.target.stats.health <= 0:
+            self.turn_order.remove(((team + 1) % len(self.teams), battle_event.target))
+            enemies.remove(battle_event.target)
     
-        return self.current_turn, action
+        return self.current_turn, battle_event
+    
+    def __iter__(self) -> Battle:
+        """
+        Returns the Battle object, implemented to satisfy Iterable behavior.
+        """
+        return self
+
+    def __next__(self) -> Tuple[int, Action]:
+        """
+        Performs next turn, or raises StopIteration if the battle is over.
+        """
+        if 0 == len(self.teams[0]) or 0 == len(self.teams[1]):
+            raise StopIteration
+        
+        return self.next()
+    
+    def resolve(self) -> list[Tuple[int, Action]]:
+        """
+        Resolves the Battle by iterating through the turns until one team is defated.
+        """
+        turns = []
+        for r in self: turns.append(r)
+        return turns
 
         

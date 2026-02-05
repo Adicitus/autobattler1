@@ -96,15 +96,33 @@ class TestBattle(unittest.TestCase):
         self.assertEqual(len(team2), 0, f"Since '{b}' was reduced to 0 health, '{b}' should have been removed from team 2 (which should be empty).")
         self.assertEqual(len(battle.turn_order), 1, f"Since '{b}' was killed in the first turn, the turn order should only contain 1 battler ('{a}').")
     
-    def test_battle_basic_battle(self):
+    def test_battle_basic_battle_manual(self):
         a = Battler("A", 1, 1)
         b = Battler("B", 2, 1)
         team1  = [a]
         team2  = [b]
         battle = Battle(team1, team2)
         turns = []
-        while 1 < len(battle.turn_order):
-            turns.append(battle.next())
+        while 1 < len(battle.turn_order): turns.append(battle.next())
+        
+        self.assertEqual(len(turns), 2)
+        self.assertEqual(len(battle.turn_order), 1)
+    
+    def test_battle_basic_battle_iterable(self):
+        team1  = [Battler("A", 1, 1)]
+        team2  = [Battler("B", 2, 1)]
+        battle = Battle(team1, team2)
+        turns = []
+        for r in battle: turns.append(r)
+        
+        self.assertEqual(len(turns), 2)
+        self.assertEqual(len(battle.turn_order), 1)
+    
+    def test_battle_basic_battle_resolve(self):
+        team1  = [Battler("A", 1, 1)]
+        team2  = [Battler("B", 2, 1)]
+        battle = Battle(team1, team2)
+        turns = battle.resolve()
         
         self.assertEqual(len(turns), 2)
         self.assertEqual(len(battle.turn_order), 1)
