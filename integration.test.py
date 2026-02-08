@@ -16,7 +16,7 @@ class IntegrationTest(unittest.TestCase):
         campaign.add_asset(cave)
         campaign.add_asset(party)
 
-        battle = Battle([Battler("Evan", 2, 1), Battler("John", 1, 1)], [Battler("Goblin 1", 1, 1),Battler("Goblin 2", 1, 1),Battler("Goblin 3", 1, 1)])
+        battle = Battle([Battler("Evan", 1, 1), Battler("John", 1, 1)], [Battler("Goblin 1", 1, 1),Battler("Goblin 2", 1, 1),Battler("Goblin 3", 1, 1)])
 
         flags = {
             "ended": False

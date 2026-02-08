@@ -55,7 +55,7 @@ class TestBattle(unittest.TestCase):
         battle = Battle([], [])
         self.assertEqual(battle.teams[0], [])
         self.assertEqual(battle.teams[1], [])
-        self.assertEqual(battle.turn_order, [])
+        self.assertEqual(len(battle.turn_order), 0)
     
     def test_battle_creation_one_empty(self):
         team1  = [Battler("A", 1, 1)]

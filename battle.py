@@ -1,3 +1,4 @@
+from collections import deque
 import enum
 from typing import Tuple
 
@@ -10,6 +11,9 @@ class BattleEventType: pass
 class BattleEvent: pass
 class Battle: pass
 
+class BattleDoneException(Exception): pass
+class BattleWonException(Exception): pass
+class BattleDrawException(Exception): pass
 
 class StatBlock(dict):
     def __init__(self, health:int=0, damage:int=0) -> None:
@@ -94,7 +98,7 @@ class Battle:
             team1,
             team2
         ]
-        self.turn_order = []
+        self.turn_order = deque()
         for team_num in range(0, len(self.teams)):
             team = self.teams[team_num]
             for battler in team:
@@ -105,23 +109,45 @@ class Battle:
     def next(self) -> Tuple[int, Action]:
         """
         Attempts to execute the next turn, even if there are no teams or only one remains.
+
+        Raises BattleDoneException if:
+            - the battle is over (.is_done returns True).
+            - a battler was selected to act, but the enemy team is empty.
         """
+
+        if self.is_done():
+            raise BattleDoneException()
+
         turn_num = self.current_turn
         self.current_turn = turn_num + 1
 
-        battler_record = self.turn_order[turn_num % len(self.turn_order)]
+        battler_record = self.turn_order.popleft()
+        
+        print(f"{battler_record[1].name} is going ({battler_record[1].stats.health}hp)")
+
         team = battler_record[0]
         battler = battler_record[1]
         allies  = self.teams[team]
         enemies = self.teams[(team + 1) % len(self.teams)]
+        
+        if len(enemies) == 0:
+            raise BattleDoneException(f"team {team} won!")
+
         battle_event = battler.attack(allies=allies, enemies=enemies)
 
+        if 0 < battler.stats.health:
+            self.turn_order.append(battler_record)
+        
         if battle_event.target.stats.health <= 0:
-            self.turn_order.remove(((team + 1) % len(self.teams), battle_event.target))
-            enemies.remove(battle_event.target)
+            t = battle_event.target
+            enemies.remove(t)
+            self.turn_order = deque(filter(lambda r: r[1] != t, self.turn_order))
     
         return self.current_turn, battle_event
     
+    def is_done(self):
+        return len(self.teams[0]) == 0 or len(self.teams[1]) == 0
+
     def __iter__(self) -> Battle:
         """
         Returns the Battle object, implemented to satisfy Iterable behavior.
