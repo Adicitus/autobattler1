@@ -67,6 +67,12 @@ class Battler:
         target.stats = BASIC_ATTACK.perform(self.stats, target.stats)
         after = target.stats.clone()
         return BattleEvent(BattleEventType.ATTACK, BASIC_ATTACK, self, target, before, after)
+    
+    def __str__(self) -> str:
+        return self.name
+    
+    def __repr__(self) -> str:
+        return f"Battler('{self.name}', {self.stats.health}, {self.stats.damage})"
         
 class BattleEventType(enum.IntEnum):
     ATTACK = 0
