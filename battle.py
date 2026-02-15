@@ -156,10 +156,9 @@ class Battle:
 
     def __next__(self) -> Tuple[int, Action]:
         """
-        Performs next turn, or raises StopIteration if the battle is over.
+        Performs next turn snd returns the resulting BattleEvent, or raises StopIteration if the battle is over.
         """
-        if 0 == len(self.teams[0]) or 0 == len(self.teams[1]):
-            raise StopIteration
+        if self.is_done(): raise StopIteration
         
         return self.next()
     
