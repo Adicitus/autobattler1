@@ -93,6 +93,9 @@ class BattleEvent:
 
     
 class Battle:
+    """
+    Represents a battle. Tracks current turn number, organizes turn order and facilitates combat turns.
+    """
     def __init__(self, team1:list, team2:list) -> None:
         self.teams = [
             team1,
@@ -118,8 +121,7 @@ class Battle:
         if self.is_done():
             raise BattleDoneException()
 
-        turn_num = self.current_turn
-        self.current_turn = turn_num + 1
+        self.current_turn += 1
 
         battler_record = self.turn_order.popleft()
         
@@ -146,6 +148,9 @@ class Battle:
         return self.current_turn, battle_event
     
     def is_done(self):
+        """
+        Check if the battle is over, i.e. if at least one teams is empty.
+        """
         return len(self.teams[0]) == 0 or len(self.teams[1]) == 0
 
     def __iter__(self) -> Battle:
@@ -156,7 +161,7 @@ class Battle:
 
     def __next__(self) -> Tuple[int, Action]:
         """
-        Performs next turn snd returns the resulting BattleEvent, or raises StopIteration if the battle is over.
+        Performs next turn and returns the resulting BattleEvent, or raises StopIteration if the battle is over.
         """
         if self.is_done(): raise StopIteration
         
