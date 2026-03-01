@@ -44,7 +44,8 @@ class TestBattle(unittest.TestCase):
     def test_battler_attack(self):
         a = Battler("A", 1, 1)
         b = Battler("B", 1, 1)
-        act = a.attack([a], [b])
+        events = a.act([a], [b])
+        act = events[0]
         self.assertIsInstance(act, BattleEvent)
         self.assertEqual(act.type, BattleEventType.ATTACK)
         self.assertEqual(act.battler, a)
@@ -84,14 +85,14 @@ class TestBattle(unittest.TestCase):
         team2  = [b]
         battle = Battle(team1, team2)
         self.assertEqual(len(battle.turn_order), 2, f"Battle turn order should contain all battlers (2), but contains {len(battle.turn_order)} instead.")
-        turn_num, act = battle.next()
-        self.assertIsInstance(act.action, Action, "The action performed in the event should be an Action object.")
-        self.assertEqual(act.action, BASIC_ATTACK, "By default the battlers should only be able to use the BASIC_ATTACK action")
+        turn_num, events = battle.next()
+        self.assertIsInstance(events[0].action, Action, "The action performed in the event should be an Action object.")
+        self.assertEqual(events[0].action, BASIC_ATTACK, "By default the battlers should only be able to use the BASIC_ATTACK action")
         self.assertEqual(turn_num, battle.current_turn)
         self.assertEqual(turn_num, 1)
-        self.assertIsInstance(act, BattleEvent)
-        self.assertEqual(act.battler, a, f"Battler '{a}' was expected to the first since team1 should be going first, but found {act.battler} instead")
-        self.assertEqual(act.target, b, f"Battler '{b}' is expected to be the target since it is alone on team 2, but found '{act.target}' instead")
+        self.assertIsInstance(events[0], BattleEvent)
+        self.assertEqual(events[0].battler, a, f"Battler '{a}' was expected to the first since team1 should be going first, but found {events[0].battler} instead")
+        self.assertEqual(events[0].target, b, f"Battler '{b}' is expected to be the target since it is alone on team 2, but found '{events[0].target}' instead")
         self.assertEqual(b.stats.health, 0, f"Since '{a}' does 1 damage and '{b}' has 1 health, '{b}' should be reduced to 0 health")
         self.assertEqual(len(team2), 0, f"Since '{b}' was reduced to 0 health, '{b}' should have been removed from team 2 (which should be empty).")
         self.assertEqual(len(battle.turn_order), 1, f"Since '{b}' was killed in the first turn, the turn order should only contain 1 battler ('{a}').")
@@ -147,7 +148,7 @@ class TestBattle(unittest.TestCase):
         while 1 < len(battle.turn_order):
             turn = battle.next()
             turns.append(turn)
-            ev = turn[1]
+            ev = turn[1][0]
             print(f"Turn {turn[0]}: {ev.battler.name} attacks {ev.target.name} for {ev.before.health - ev.after.health} HP ({ev.before.health} -> {ev.after.health})")
             if ev.after.health <= 0:
                 print(f"{ev.target.name} was defeated!")

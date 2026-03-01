@@ -65,12 +65,12 @@ class Battler:
         self.name   = name
         self.stats  = StatBlock(health, damage)
     
-    def attack(self, allies:list, enemies:list) -> BattleEvent:
+    def act(self, allies:list, enemies:list) -> list[BattleEvent]:
         target = enemies[0]
         before = target.stats.clone()
         target.stats = BASIC_ATTACK.perform(self.stats, target.stats)
         after = target.stats.clone()
-        return BattleEvent(BattleEventType.ATTACK, BASIC_ATTACK, self, target, before, after)
+        return [BattleEvent(BattleEventType.ATTACK, BASIC_ATTACK, self, target, before, after)]
     
     def __str__(self) -> str:
         return self.name
@@ -109,7 +109,7 @@ class Battle:
         self.current_turn = 0
 
     
-    def next(self) -> Tuple[int, Action]:
+    def next(self) -> Tuple[int, list[BattleEvent]]:
         """
         Attempts to execute the next turn, even if there are no teams or only one remains.
 
@@ -135,17 +135,18 @@ class Battle:
         if len(enemies) == 0:
             raise BattleDoneException(f"team {team} won!")
 
-        battle_event = battler.attack(allies=allies, enemies=enemies)
+        battle_events = battler.act(allies=allies, enemies=enemies)
 
         if 0 < battler.stats.health:
             self.turn_order.append(battler_record)
         
-        if battle_event.target.stats.health <= 0:
-            t = battle_event.target
-            enemies.remove(t)
-            self.turn_order = deque(filter(lambda r: r[1] != t, self.turn_order))
+        for battle_event in battle_events:
+            if battle_event.target.stats.health <= 0:
+                t = battle_event.target
+                enemies.remove(t)
+                self.turn_order = deque(filter(lambda r: r[1] != t, self.turn_order))
     
-        return self.current_turn, battle_event
+        return self.current_turn, battle_events
     
     def is_done(self):
         """
