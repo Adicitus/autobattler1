@@ -78,6 +78,26 @@ class TestBattle(unittest.TestCase):
         self.assertEqual(len(battle.teams[1]), len(team2))
         self.assertEqual(len(battle.turn_order), 2)
     
+    def test_battle_is_done(self):
+        battle = Battle([], [])
+        self.assertTrue(battle.is_done(), "If both teams are empty, then the battle is over.")
+
+        
+        team1  = [Battler("A", 1, 1)]
+        team2  = []
+        battle = Battle(team1, team2)
+        self.assertTrue(battle.is_done(), "If one team is empty and the other isn't, then the battle is over and the team with members won.")
+        
+        team1  = []
+        team2  = [Battler("B", 1, 1)]
+        battle = Battle(team1, team2)
+        self.assertTrue(battle.is_done(), "If one team is empty and the other isn't, then the battle is over and the team with members won.")
+        
+        team1  = [Battler("A", 1, 1)]
+        team2  = [Battler("B", 1, 1)]
+        battle = Battle(team1, team2)
+        self.assertFalse(battle.is_done(), "If both teams have battlers still on them, then the battle isn't over.")
+    
     def test_battle_next(self):
         a = Battler("A", 1, 1)
         b = Battler("B", 1, 1)
