@@ -23,7 +23,8 @@ class IntegrationTest(unittest.TestCase):
         }
         def do_battle(*_):
 
-            for n, e in battle:
+            for n, events in battle:
+                e = events[0]
                 print(f"{n}: {e.battler.name} used {e.action.name} on {e.target.name}... {battle.turn_order}")
                 if e.target.stats.health <= 0:
                     print(f"{e.target.name} dies.")

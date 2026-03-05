@@ -115,7 +115,6 @@ class Battle:
 
         Raises BattleDoneException if:
             - the battle is over (.is_done returns True).
-            - a battler was selected to act, but the enemy team is empty.
         """
 
         if self.is_done():
@@ -131,9 +130,6 @@ class Battle:
         battler = battler_record[1]
         allies  = self.teams[team]
         enemies = self.teams[(team + 1) % len(self.teams)]
-        
-        if len(enemies) == 0:
-            raise BattleDoneException(f"team {team} won!")
 
         battle_events = battler.act(allies=allies, enemies=enemies)
 
@@ -160,15 +156,15 @@ class Battle:
         """
         return self
 
-    def __next__(self) -> Tuple[int, Action]:
+    def __next__(self) -> Tuple[int, list[BattleEvent]]:
         """
-        Performs next turn and returns the resulting BattleEvent, or raises StopIteration if the battle is over.
+        Performs next turn and returns the turn number and resulting BattleEvent(s), or raises StopIteration if the battle is over.
         """
         if self.is_done(): raise StopIteration
         
         return self.next()
     
-    def resolve(self) -> list[Tuple[int, Action]]:
+    def resolve(self) -> list[Tuple[int, list[BattleEvent]]]:
         """
         Resolves the Battle by iterating through the turns until one team is defated.
         """
