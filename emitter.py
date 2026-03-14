@@ -20,7 +20,7 @@ class Emitter:
         self.events[event_name].remove(handler)
 
 
-    def emit(self, event_name:str, data:Any) -> None:
+    def emit(self, event_name:str, data:Any=None) -> None:
         if event_name not in self.events:
             return
         

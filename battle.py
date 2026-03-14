@@ -1,6 +1,7 @@
 from collections import deque
 import enum
-from typing import Tuple
+from typing import Any, Callable, Tuple
+from emitter import Emitter
 
 # Empty type declarations so that the names can be used in type hints
 class StatBlock: pass
@@ -60,18 +61,26 @@ class BasicAttack(Action):
 
 BASIC_ATTACK = BasicAttack()
 
-class Battler:
+class Battler(Emitter):
     def __init__(self, name:str, health:int, damage:int) -> None:
+        super().__init__()
+        
+        self.events["act_start"] = []
+        self.events["act_end"] = []
+
         self.name   = name
         self.stats  = StatBlock(health, damage)
     
     def act(self, allies:list, enemies:list) -> list[BattleEvent]:
+        self.emit("act_start")
         target = enemies[0]
         before = target.stats.clone()
         target.stats = BASIC_ATTACK.perform(self.stats, target.stats)
         after = target.stats.clone()
+        self.emit("act_end")
         return [BattleEvent(BattleEventType.ATTACK, BASIC_ATTACK, self, target, before, after)]
-    
+        
+
     def __str__(self) -> str:
         return self.name
     
@@ -92,11 +101,16 @@ class BattleEvent:
 
 
     
-class Battle:
+class Battle(Emitter):
     """
     Represents a battle. Tracks current turn number, organizes turn order and facilitates combat turns.
     """
     def __init__(self, team1:list, team2:list) -> None:
+        super().__init__()
+        
+        self.events["turn_start"] = []
+        self.events["turn_end"] = []
+        
         self.teams = [
             team1,
             team2
@@ -130,6 +144,8 @@ class Battle:
         battler = battler_record[1]
         allies  = self.teams[team]
         enemies = self.teams[(team + 1) % len(self.teams)]
+        
+        self.emit("turn_start", battler)
 
         battle_events = battler.act(allies=allies, enemies=enemies)
 
@@ -142,6 +158,9 @@ class Battle:
                 enemies.remove(t)
                 self.turn_order = deque(filter(lambda r: r[1] != t, self.turn_order))
     
+        
+        self.emit("turn_end", battler)
+
         return self.current_turn, battle_events
     
     def is_done(self):
