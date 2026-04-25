@@ -20,7 +20,7 @@ class TestTurnManager(unittest.TestCase):
         tm = TurnManager(battlers)
         self.assertIsInstance(tm, TurnManager)
         self.assertEqual(len(tm), len(battlers))
-        self.assertListEqual(tm.battlers, battlers)
+        self.assertEqual(len(tm), 2)
     
     def test_next_battler_on_empty(self):
         tm = TurnManager([])
@@ -97,11 +97,14 @@ class TestTurnManager(unittest.TestCase):
         self.assertEqual(tm.round, 3)
         
     def test_next_battler_consecutive_turns(self):
-        battlers = [Battler('Faster', reflex=8), Battler('Slower', reflex=1)]
+        battlers = [Battler('Faster', reflex=9), Battler('Slower', reflex=1)]
         tm = TurnManager(battlers)
         self.assertEqual(tm.next_battler(), battlers[0]) # 1, costs 1
+        self.assertEqual(battlers[0].stats.reflex_current, 8)
         self.assertEqual(tm.next_battler(), battlers[0]) # 2, costs 2
+        self.assertEqual(battlers[0].stats.reflex_current, 6)
         self.assertEqual(tm.next_battler(), battlers[0]) # 3, costs 4
+        self.assertEqual(battlers[0].stats.reflex_current, 2)
         
 
 
@@ -252,11 +255,13 @@ class TestBattle(unittest.TestCase):
         self.assertEqual(len(battle.turn_order), 1)
     
     def test_battle_random_1v1_battle(self):
-        a = Battler("A", random.randint(5, 15), random.randint(1, 6), random.randint(1, 6))
-        b = Battler("B", random.randint(5, 15), random.randint(1, 6), random.randint(1, 6))
+        a = Battler("A", random.randint(15, 45), random.randint(2, 8), random.randint(1, 6))
+        b = Battler("B", random.randint(15, 45), random.randint(1, 6), random.randint(2, 8))
         team1  = [a]
         team2  = [b]
         battle = Battle(team1, team2)
+        battle.turn_order.on("round_start", lambda tm, _: (print(f"Round {tm.round} starts!") or True))
+        battle.turn_order.on("round_end", lambda tm, _: (print(f"Round {tm.round} ends.") or True))
         turns = []
 
         print()

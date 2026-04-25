@@ -79,6 +79,20 @@ class Battler(Emitter):
         return f"Battler('{self.name}', {self.stats})"
 
 
+# Used to track Battlers place in the turn order and the cost of their next turn
+class Turn:
+    battler:Battler
+    cost_exponent:int=0
+
+    def __init__(self, battler:Battler) -> None:
+        self.battler = battler
+    
+    def __str__(self) -> str:
+        return self.battler.__str__()
+
+    def __repr__(self) -> str:
+        return f"Turn({self.battler.__repr__()}, {self.cost_exponent})"
+
 # Implements turn order logic.
 #
 # Turn order is based on the battler's reflex (stats.reflex_curent) stat:
@@ -88,28 +102,38 @@ class Battler(Emitter):
 #   b1 can take additional turns with each turn costing twice as much as the previous.
 # 4. If the battler still has at least 1 reflex left, it will be returned to the back of the turn order.
 #
-# When all battlers have 0 relfex left, the round is over.
-class TurnManager():
+# 
+# When all battlers have 0 Reflex left, the round is over.
+class TurnManager(Emitter):
     def __init__(self, battlers:Iterable[Battler]):
+        super().__init__()
         self.turn   = 0
         self.round  = 0
-        self.battlers   = list(battlers)
-        self.new_round()
+        self.battlers   = list(map(lambda b: Turn(b), battlers))
+        self.turn_queue = deque()
     
+    # Ends the current round and sets up the next round:
+    # - Emits "round_end" event on each battlers
+    # - Resets reflex_current to reflex_base
+    # - Emits "round_start" event on all battlers
     def new_round(self) -> None:
+
         if self.round > 0:
+            self.emit("round_end", self.round)
             for b in self.battlers:
-                b.emit("round_end")
+                b.battler.emit("round_end", self.round)
 
         self.round += 1
         for b in self.battlers:
-            b.stats.reflex_current = b.stats.reflex_base
+            b.cost_exponent = 0
+            b.battler.stats.reflex_current = b.battler.stats.reflex_base
 
+        self.emit("round_start", self.round)
         for b in self.battlers:
-            b.emit("round_start")
+            b.battler.emit("round_start", self.round)
         
         q = self.battlers.copy()
-        q.sort(key=lambda b: b.stats.reflex_current, reverse=True)
+        q.sort(key=lambda b: b.battler.stats.reflex_current, reverse=True)
         self.turn_queue = deque(q)
         
 
@@ -125,43 +149,47 @@ class TurnManager():
         
         # Grab the next battler:
         b1 = self.turn_queue.popleft()
-        
-        # Subtract the cost of doing this turn:
-        b1.stats.reflex_current -= 1
+        cost = pow(2, b1.cost_exponent)
+        b1.battler.stats.reflex_current -= cost
 
-        # Check if the battler is eligible for consecutive turns:
-        if len(self.turn_queue) > 0:
-            b2 = self.turn_queue.popleft()
-            self.turn_queue.appendleft(b2)
-            reflex_diff = b1.stats.reflex_current - b2.stats.reflex_current
-            if reflex_diff >= 2:
-                cost = 2
-                while reflex_diff > cost:
-                    reflex_diff -= cost
-                    b1.stats.reflex_current -= cost
+        if b1.battler.stats.reflex_current > 0:
+            if len(self.turn_queue) > 0:
+                b2 = self.turn_queue.popleft()
+                self.turn_queue.appendleft(b2)
+
+                budget = b1.battler.stats.reflex_current - b2.battler.stats.reflex_current
+
+                if budget > cost * 2:
+                    b1.cost_exponent += 1
                     self.turn_queue.appendleft(b1)
-                    cost *= 2
+                else:
+                    b1.cost_exponent = 0
+                    self.turn_queue.append(b1)
+            else:
+                # b1 is the last battler, so will only do consecutive turns
+                b1.cost_exponent += 1
+                self.turn_queue.append(b1)
 
-        # If this battler still has more reflex points to spend, append to the end of the queue:
-        if b1.stats.reflex_current > 0:
-            self.turn_queue.append(b1)
-
-        return b1
+        return b1.battler
 
     # Remove a given battler form the manager
-    def remove_battler(self, b:Battler):
-        try:
-            self.battlers.remove(b)
-        except ValueError:
-            # The battler was never registered with this manager
-            return
+    def remove_battler(self, b:Battler) -> None:
+        t:Turn = None
+        i = 0
+        while i < len(self.battlers):
+            if self.battlers[i].battler == b:
+                t = self.battlers[i]
+                break
+            i += 1
         
-        # There may be multiple instances of the battler in the queue:
-        try:
-            while True:
-                self.turn_queue.remove(b)
-        except ValueError:
-            pass
+        if t == None:
+            return
+
+        self.battlers.remove(t)
+        
+        # There should be at most 1 turn referencing the battler in the queue
+        if t in self.turn_queue:
+            self.turn_queue.remove(t)
 
     def __len__(self):
         return len(self.battlers)

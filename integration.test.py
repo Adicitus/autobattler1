@@ -25,7 +25,7 @@ class IntegrationTest(unittest.TestCase):
 
             for n, events in battle:
                 e = events[0]
-                print(f"{n}: {e.battler.name} used {e.action.name} on {e.target.name}... {battle.turn_order}")
+                print(f"{n}: {e.battler.name} used {e.action.name} on {e.target.name}... {battle.turn_order.battlers}")
                 if e.target.stats.health <= 0:
                     print(f"{e.target.name} dies.")
 

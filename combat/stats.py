@@ -29,4 +29,6 @@ class BattleStats(dict):
         return f"HP: {self.health}/{self.max_health}, DMG: {self.damage}, Reflex: {self.reflex_current}/{self.reflex_base}"
 
     def clone(self):
-        return BattleStats(self.health, self.damage)
+        s = BattleStats(self.health, self.damage, self.reflex_base)
+        s.reflex_current = self.reflex_current
+        return s
