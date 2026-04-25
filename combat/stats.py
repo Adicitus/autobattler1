@@ -2,9 +2,13 @@
 class BattleStats: pass
 
 class BattleStats(dict):
-    def __init__(self, health:int=0, damage:int=0) -> None:
+    def __init__(self, health:int=0, damage:int=0, reflex:int=1) -> None:
+        self.max_health = health
         self.health = health
         self.damage = damage
+
+        self.reflex_base  = reflex
+        self.reflex_current = reflex
     
     def __add__(self, other) -> BattleStats:
         copy = self.clone()
@@ -20,6 +24,9 @@ class BattleStats(dict):
     
     def __eq__(self, other) -> bool:
         return self.health == other.health and self.damage == other.damage
+
+    def __str__(self):
+        return f"HP: {self.health}/{self.max_health}, DMG: {self.damage}, Reflex: {self.reflex_current}/{self.reflex_base}"
 
     def clone(self):
         return BattleStats(self.health, self.damage)

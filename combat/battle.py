@@ -1,6 +1,6 @@
 from collections import deque
 import enum
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, Tuple, Iterable
 
 from emitter import Emitter
 from combat.stats import BattleStats
@@ -53,14 +53,14 @@ class Battler(Emitter):
         return f"Battler('{self.name}', {self.stats.health}, {self.stats.damage})"
 
 class Battler(Emitter):
-    def __init__(self, name:str, health:int, damage:int) -> None:
+    def __init__(self, name:str, health:int=1, damage:int=1, reflex:int=1) -> None:
         super().__init__()
         
         self.events["act_start"] = []
         self.events["act_end"] = []
 
         self.name   = name
-        self.stats  = BattleStats(health, damage)
+        self.stats  = BattleStats(health, damage, reflex)
     
     def act(self, allies:list, enemies:list) -> list[BattleEvent]:
         self.emit("act_start")
@@ -76,7 +76,98 @@ class Battler(Emitter):
         return self.name
     
     def __repr__(self) -> str:
-        return f"Battler('{self.name}', {self.stats.health}, {self.stats.damage})"
+        return f"Battler('{self.name}', {self.stats})"
+
+
+# Implements turn order logic.
+#
+# Turn order is based on the battler's reflex (stats.reflex_curent) stat:
+# 1. Higher reflex_current go before lower
+# 2. Each time a character is selected to act, reflex_current is reduces by 1
+# 3. If the difference between the current batller b1's and the next battler b2's reflex is greater than 2,
+#   b1 can take additional turns with each turn costing twice as much as the previous.
+# 4. If the battler still has at least 1 reflex left, it will be returned to the back of the turn order.
+#
+# When all battlers have 0 relfex left, the round is over.
+class TurnManager():
+    def __init__(self, battlers:Iterable[Battler]):
+        self.turn   = 0
+        self.round  = 0
+        self.battlers   = list(battlers)
+        self.new_round()
+    
+    def new_round(self) -> None:
+        if self.round > 0:
+            for b in self.battlers:
+                b.emit("round_end")
+
+        self.round += 1
+        for b in self.battlers:
+            b.stats.reflex_current = b.stats.reflex_base
+
+        for b in self.battlers:
+            b.emit("round_start")
+        
+        q = self.battlers.copy()
+        q.sort(key=lambda b: b.stats.reflex_current, reverse=True)
+        self.turn_queue = deque(q)
+        
+
+    # Returns the next battler in the turn order, or None if all battlers are done.
+    def next_battler(self) -> Battler | None:
+        if len(self.turn_queue) == 0:
+            if len(self.battlers) > 0:
+                self.new_round()
+            else:
+                return None
+            
+        self.turn += 1
+        
+        # Grab the next battler:
+        b1 = self.turn_queue.popleft()
+        
+        # Subtract the cost of doing this turn:
+        b1.stats.reflex_current -= 1
+
+        # Check if the battler is eligible for consecutive turns:
+        if len(self.turn_queue) > 0:
+            b2 = self.turn_queue.popleft()
+            self.turn_queue.appendleft(b2)
+            reflex_diff = b1.stats.reflex_current - b2.stats.reflex_current
+            if reflex_diff >= 2:
+                cost = 2
+                while reflex_diff > cost:
+                    reflex_diff -= cost
+                    b1.stats.reflex_current -= cost
+                    self.turn_queue.appendleft(b1)
+                    cost *= 2
+
+        # If this battler still has more reflex points to spend, append to the end of the queue:
+        if b1.stats.reflex_current > 0:
+            self.turn_queue.append(b1)
+
+        return b1
+
+    # Remove a given battler form the manager
+    def remove_battler(self, b:Battler):
+        try:
+            self.battlers.remove(b)
+        except ValueError:
+            # The battler was never registered with this manager
+            return
+        
+        # There may be multiple instances of the battler in the queue:
+        try:
+            while True:
+                self.turn_queue.remove(b)
+        except ValueError:
+            pass
+
+    def __len__(self):
+        return len(self.battlers)
+    
+    def __str__(self):
+        return str(self.turn_queue)
 
 class Battle(Emitter):
     """
@@ -88,16 +179,10 @@ class Battle(Emitter):
         self.events["turn_start"] = []
         self.events["turn_end"] = []
         
-        self.teams = [
-            team1,
-            team2
-        ]
-        self.turn_order = deque()
-        for team_num in range(0, len(self.teams)):
-            team = self.teams[team_num]
-            for battler in team:
-                self.turn_order.append((team_num, battler))
-        self.current_turn = 0
+        self.team1 = team1
+        self.team2 = team2
+
+        self.turn_order = TurnManager(team1 + team2)
 
     
     def next(self) -> Tuple[int, list[BattleEvent]]:
@@ -111,41 +196,44 @@ class Battle(Emitter):
         if self.is_done():
             raise BattleDoneException()
 
-        self.current_turn += 1
+        battler = self.turn_order.next_battler();
 
-        battler_record = self.turn_order.popleft()
+        if battler == None:
+            # Turn manager is empty, battle is over
+            raise BattleDoneException()
         
-        print(f"{battler_record[1].name} is going ({battler_record[1].stats.health}hp)")
+        print(f"{battler.name} is going {battler.stats}")
 
-        team = battler_record[0]
-        battler = battler_record[1]
-        allies  = self.teams[team]
-        enemies = self.teams[(team + 1) % len(self.teams)]
+        allies  = self.team1
+        enemies = self.team2
+        if battler not in allies:
+            allies  = self.team2
+            enemies = self.team1
         
         self.emit("turn_start", battler)
 
         battle_events = battler.act(allies=allies, enemies=enemies)
-
-        if 0 < battler.stats.health:
-            self.turn_order.append(battler_record)
         
         for battle_event in battle_events:
             if battle_event.target.stats.health <= 0:
                 self.emit("battler_killed", battle_event)
                 t = battle_event.target
-                enemies.remove(t) # TODO: This assumes that the target will always be an enemy, should be updated to detect if the target ís an ally.
-                self.turn_order = deque(filter(lambda r: r[1] != t, self.turn_order))
+                if t in self.team1:
+                    self.team1.remove(t)
+                else:
+                    self.team2.remove(t)
+                self.turn_order.remove_battler(t)
     
         
         self.emit("turn_end", battler)
 
-        return self.current_turn, battle_events
+        return self.turn_order.turn, battle_events
     
     def is_done(self):
         """
         Check if the battle is over, i.e. if at least one teams is empty.
         """
-        return len(self.teams[0]) == 0 or len(self.teams[1]) == 0
+        return len(self.team1) == 0 or len(self.team2) == 0
 
     def __iter__(self) -> Battle:
         """
