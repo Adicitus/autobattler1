@@ -1,11 +1,11 @@
 import unittest
 
-from campaign import Campaign, Room, Walker
+from exploration.campaign import Map, Room, Walker
 from combat.battle import Battle, Battler
 
 class IntegrationTest(unittest.TestCase):
     def test_battle_event_room(self):
-        campaign = Campaign()
+        campaign = Map()
         
         entrance = Room("Ouside the cave")
         cave = Room("Inside the cave")

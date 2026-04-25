@@ -1,26 +1,26 @@
 import unittest
 
-from campaign import Campaign, CampaignAsset, Door, Room, CampaignEvent, Walker
+from exploration.campaign import Map, MapAsset, Door, Room, MapEvent, Walker
 
 class TestCampaign(unittest.TestCase):
 
     def test_campaignevent_creation(self):
-        CampaignEvent(lambda: True)
+        MapEvent(lambda: True)
     
     def test_campaignevent_start(self):
         flags = {
             "triggered": False
         }
-        event = CampaignEvent(lambda *_: flags.__setitem__("triggered", True))
+        event = MapEvent(lambda *_: flags.__setitem__("triggered", True))
         event.start(None)
         self.assertTrue(flags["triggered"])
 
     def test_campaignasset_creation_basic(self):
-        CampaignAsset("Test asset")
+        MapAsset("Test asset")
     
     def test_campaignasset_on_off(self):
-        asset = CampaignAsset("Test_asset")
-        event1 = CampaignEvent(lambda: True)
+        asset = MapAsset("Test_asset")
+        event1 = MapEvent(lambda: True)
         event2 = lambda: True
         # 'on' method should always accept CampaignEvent objects
         asset.on("test", event1)
@@ -42,8 +42,8 @@ class TestCampaign(unittest.TestCase):
         state = {
             "complete": False
         }
-        asset = CampaignAsset("Test_asset")
-        asset.on("emit_test", CampaignEvent(lambda *_: state.__setitem__("complete", True)))
+        asset = MapAsset("Test_asset")
+        asset.on("emit_test", MapEvent(lambda *_: state.__setitem__("complete", True)))
         asset.emit("emit_test")
         self.assertTrue(state["complete"])
     
@@ -53,8 +53,8 @@ class TestCampaign(unittest.TestCase):
         }
         def callback(*_):
             flags["tick"] = True
-        asset = CampaignAsset("Test asset")
-        asset.on("tick", CampaignEvent(callback))
+        asset = MapAsset("Test asset")
+        asset.on("tick", MapEvent(callback))
         asset.tick()
         self.assertTrue(flags["tick"])
 
@@ -91,7 +91,7 @@ class TestCampaign(unittest.TestCase):
         }
         def event1(*_):
             flags["event1_triggered"] = True
-        room1 = Room("Test room", [CampaignEvent(event1)])
+        room1 = Room("Test room", [MapEvent(event1)])
         
         self.assertEqual(len(room1.walkers), 0)
         r = room1.enter(None)
@@ -110,9 +110,9 @@ class TestCampaign(unittest.TestCase):
         def event2(*_): 
             flags["room_event_triggered"] = True
         
-        room = Room("Test room", [CampaignEvent(event2)])
+        room = Room("Test room", [MapEvent(event2)])
         door = Door("Test door", room)
-        door.on("enter", CampaignEvent(event1))
+        door.on("enter", MapEvent(event1))
         r = door.enter(None)
         self.assertEqual(room, r)
         self.assertEqual(len(r.walkers), 1)
@@ -184,18 +184,18 @@ class TestCampaign(unittest.TestCase):
         self.assertIn(walker2, room2.walkers, f"Walker {walker1.name} should have entered {room2.name} since it connects through the last door in {room0.name}")
     
     def test_campaign_creation_basic(self):
-        Campaign()
+        Map()
     
     def test_campaign_add_remove_asset(self):
-        campaign = Campaign()
-        asset = CampaignAsset()
+        campaign = Map()
+        asset = MapAsset()
         campaign.add_asset(asset)
         self.assertTrue(asset in campaign.assets)
         campaign.remove_asset(asset)
         self.assertTrue(asset not in campaign.assets)
 
     def test_campaign_add_remove_room(self):
-        campaign = Campaign()
+        campaign = Map()
         room1 = Room("Room1")
         room2 = Room("Room2")
 
@@ -226,19 +226,19 @@ class TestCampaign(unittest.TestCase):
             "asset_2_tick": False,
         }
 
-        test_asset1 = CampaignAsset("Test asset 1")
+        test_asset1 = MapAsset("Test asset 1")
         test_asset1.on("tick", lambda *_: flags.__setitem__("asset_1_tick", True))
-        test_asset2 = CampaignAsset("Test asset 2")
+        test_asset2 = MapAsset("Test asset 2")
         test_asset2.on("tick", lambda *_: flags.__setitem__("asset_2_tick", True))
         assets = [test_asset1, test_asset2]
-        campaign = Campaign(assets)
+        campaign = Map(assets)
         campaign.tick()
         self.assertTrue(flags["asset_1_tick"])
         self.assertTrue(flags["asset_2_tick"])
 
     def test_campaign_walk(self):
         
-        campaign = Campaign()
+        campaign = Map()
         state = {
             "complete": False
         }
@@ -255,7 +255,7 @@ class TestCampaign(unittest.TestCase):
 
         for i in range(1, 9):
             room = Room(f"{9-i}")
-            room.on("enter", CampaignEvent(lambda r, w: print(f"{w.name} takes a step, {r.name} steps left ({r})...")))
+            room.on("enter", MapEvent(lambda r, w: print(f"{w.name} takes a step, {r.name} steps left ({r})...")))
             campaign.add_room(room, last_room)
             last_room = room
         

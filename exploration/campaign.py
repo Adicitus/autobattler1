@@ -2,24 +2,24 @@ from collections.abc import Iterable
 from typing import Any, Callable, Optional, Tuple
 
 # Empty type declarations so that the names can be used in type hints
-class CampaignEvent: pass
-class CampaignAsset: pass
+class MapEvent: pass
+class MapAsset: pass
 class Walker: pass
 class Room: pass
 class Door: pass
-class Campaign: pass
+class Map: pass
 
-class CampaignEvent:
+class MapEvent:
     """
     Wrapper around basic callables when used in Campaign eventing.
     """
-    def __init__(self, callback:Callable[[CampaignAsset, Any], None]) -> None:
+    def __init__(self, callback:Callable[[MapAsset, Any], None]) -> None:
         self.enabled: bool = True
         """Determines if this event can start or not."""
-        self.callback: Callable[[CampaignAsset, Any], None] = callback
+        self.callback: Callable[[MapAsset, Any], None] = callback
         """Callable to run then this event starts"""
 
-    def start(self, caller:CampaignAsset, event_data:any=None):
+    def start(self, caller:MapAsset, event_data:any=None):
         """
         Calls the wrapped callable if this event is enabled, otherwise does nothing.
 
@@ -29,27 +29,27 @@ class CampaignEvent:
         if self.enabled:
             self.callback(caller, event_data)
 
-class CampaignAsset:
+class MapAsset:
     """
     Basic asset used in campaigns, implements .tick and basic event emitter functionality.
     TODO: Inherit pymitter (https://pypi.org/project/pymitter/)?
     """
     def __init__(self, name:str="") -> None:
         self.name: str = name
-        self.events: dict[str, list[Callable[[CampaignAsset, Any], None]]] = {
+        self.events: dict[str, list[Callable[[MapAsset, Any], None]]] = {
             "tick": []
         }
 
-    def on(self, event_type: str, event: CampaignEvent | Callable[[CampaignAsset, Any], None]) -> None:
+    def on(self, event_type: str, event: MapEvent | Callable[[MapAsset, Any], None]) -> None:
         """
         Adds the given callable or CampaignEvent to the list of event handlers for the given event_type.
 
         Note: This method can be used to add event handlers for events not emitted by this object.
         """
         e = event
-        if not isinstance(e, CampaignEvent):
+        if not isinstance(e, MapEvent):
             if "__call__" in dir(e):
-                e = CampaignEvent(e)
+                e = MapEvent(e)
             else:
                 raise Exception("Tried to create a CampaignEvent using a non-callable object.")
 
@@ -61,7 +61,7 @@ class CampaignAsset:
         
         self.events[event_type].append(e)
     
-    def off(self, event_type:str, event: CampaignEvent | Callable[[CampaignAsset, Any], None]) -> None:
+    def off(self, event_type:str, event: MapEvent | Callable[[MapAsset, Any], None]) -> None:
         """
         Removes the given callable or CampaignEvent as handlers for the given event_type.
 
@@ -70,7 +70,7 @@ class CampaignAsset:
         if event_type not in self.events:
             return
         
-        if isinstance(event, CampaignEvent):
+        if isinstance(event, MapEvent):
             self.events[event_type].remove(event)
             return
         
@@ -98,7 +98,7 @@ class CampaignAsset:
         """
         self.emit("tick")
 
-class Walker(CampaignAsset):
+class Walker(MapAsset):
     """
     Base class for walkers on the campaign map, implementing a basic traversal from Room-to-Room.
     """
@@ -146,7 +146,7 @@ class Walker(CampaignAsset):
         self.room.leave(self)
         self.room = new_room
 
-class Room(CampaignAsset):
+class Room(MapAsset):
     def __init__(self, name:str, events:list=[]) -> None:
         super().__init__(name)
         self.doors: list[Door] = []
@@ -207,7 +207,7 @@ class Room(CampaignAsset):
         self.walkers.remove(walker)
         self.emit("leave", walker)
 
-class Door(CampaignAsset):
+class Door(MapAsset):
     def __init__(self, name:str="door", room:Room=None) -> None:
         super().__init__(name)
         self.name = name
@@ -225,15 +225,15 @@ class Door(CampaignAsset):
             return None
         return self.room.enter(walker)
 
-class Campaign:
-    def __init__(self, assets:Iterable[CampaignAsset]=[]) -> None:
-        self.assets: list[CampaignAsset] = []
+class Map:
+    def __init__(self, assets:Iterable[MapAsset]=[]) -> None:
+        self.assets: list[MapAsset] = []
         self.rooms: list[Room]  = []
 
         for asset in assets:
             self.add_asset(asset)
     
-    def add_asset(self, asset:CampaignAsset) -> None:
+    def add_asset(self, asset:MapAsset) -> None:
         if asset in self.assets:
             return
 
@@ -247,7 +247,7 @@ class Campaign:
         if enter_from != None:
             return room.connect_to(enter_from)
     
-    def remove_asset(self, asset:CampaignAsset) -> None:
+    def remove_asset(self, asset:MapAsset) -> None:
         if asset not in self.assets:
             return
         
