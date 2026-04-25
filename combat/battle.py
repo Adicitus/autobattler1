@@ -3,7 +3,7 @@ import enum
 from typing import Any, Callable, Tuple
 
 from emitter import Emitter
-from combat.stats import StatBlock
+from combat.stats import BattleStats
 from combat.actions import BASIC_ATTACK, Action
 
 # Empty type declarations so that the names can be used in type hints
@@ -18,7 +18,7 @@ class BattleEventType(enum.IntEnum):
     ATTACK = 0
 
 class BattleEvent:
-    def __init__(self, action_type:BattleEventType, action:Action, battler:Battler, target:Battler, before:StatBlock, after:StatBlock) -> None:
+    def __init__(self, action_type:BattleEventType, action:Action, battler:Battler, target:Battler, before:BattleStats, after:BattleStats) -> None:
         self.type = action_type
         self.action = action
         self.battler = battler
@@ -34,7 +34,7 @@ class Battler(Emitter):
         self.events["act_end"] = []
 
         self.name   = name
-        self.stats  = StatBlock(health, damage)
+        self.stats  = BattleStats(health, damage)
     
     def act(self, allies:list, enemies:list) -> list[BattleEvent]:
         self.emit("act_start")
@@ -60,7 +60,7 @@ class Battler(Emitter):
         self.events["act_end"] = []
 
         self.name   = name
-        self.stats  = StatBlock(health, damage)
+        self.stats  = BattleStats(health, damage)
     
     def act(self, allies:list, enemies:list) -> list[BattleEvent]:
         self.emit("act_start")

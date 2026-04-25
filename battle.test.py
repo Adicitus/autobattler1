@@ -2,24 +2,24 @@ import unittest
 import random
 
 
-from combat.stats import StatBlock
+from combat.stats import BattleStats
 from combat.actions import BASIC_ATTACK, Action
 from combat.battle import BattleEvent, BattleEventType, Battle, Battler
 
 class TestBattle(unittest.TestCase):
 
     def test_statblock_default(self):
-        b = StatBlock()
+        b = BattleStats()
         self.assertEqual(b.health, 0)
         self.assertEqual(b.damage, 0)
     
     def test_statblock(self):
-        b = StatBlock(health=1, damage=1)
+        b = BattleStats(health=1, damage=1)
         self.assertEqual(b.health, 1)
         self.assertEqual(b.damage, 1)
     
     def test_statblock_clone(self):
-        a = StatBlock()
+        a = BattleStats()
         b = a.clone()
 
         self.assertEqual(a, b)
@@ -28,15 +28,15 @@ class TestBattle(unittest.TestCase):
         self.assertEqual(b.damage, b.health)
     
     def test_statblock_addition(self):
-        a = StatBlock(health=1, damage=1)
-        b = StatBlock(health=1, damage=1)
+        a = BattleStats(health=1, damage=1)
+        b = BattleStats(health=1, damage=1)
         c = a + b
         self.assertEqual(c.health, 2)
         self.assertEqual(c.damage, 2)
 
     def test_statblock_subtraction(self):
-        a = StatBlock(health=1, damage=1)
-        b = StatBlock(health=1, damage=1)
+        a = BattleStats(health=1, damage=1)
+        b = BattleStats(health=1, damage=1)
         c = a - b
         self.assertEqual(c.health, 0)
         self.assertEqual(c.damage, 0)
