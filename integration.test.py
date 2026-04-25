@@ -1,7 +1,7 @@
 import unittest
 
 from campaign import Campaign, Room, Walker
-from battle import Battle, Battler
+from combat.battle import Battle, Battler
 
 class IntegrationTest(unittest.TestCase):
     def test_battle_event_room(self):

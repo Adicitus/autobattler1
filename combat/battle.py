@@ -1,65 +1,30 @@
 from collections import deque
 import enum
 from typing import Any, Callable, Tuple
+
 from emitter import Emitter
+from combat.stats import StatBlock
+from combat.actions import BASIC_ATTACK, Action
 
 # Empty type declarations so that the names can be used in type hints
-class StatBlock: pass
-class Action: pass
-class BasicAttack: pass
-class Battler: pass
-class BattleEventType: pass
-class BattleEvent: pass
 class Battle: pass
+class Battler: pass
 
 class BattleDoneException(Exception): pass
 class BattleWonException(Exception): pass
 class BattleDrawException(Exception): pass
 
-class StatBlock(dict):
-    def __init__(self, health:int=0, damage:int=0) -> None:
-        self.health = health
-        self.damage = damage
-    
-    def __add__(self, other) -> StatBlock:
-        copy = self.clone()
-        copy.health += other.health
-        copy.damage += other.damage
-        return copy
-    
-    def __sub__(self, other) -> StatBlock:
-        copy = self.clone()
-        copy.health -= other.health
-        copy.damage -= other.damage
-        return copy
-    
-    def __eq__(self, other) -> bool:
-        return self.health == other.health and self.damage == other.damage
+class BattleEventType(enum.IntEnum):
+    ATTACK = 0
 
-    def clone(self):
-        return StatBlock(self.health, self.damage)
-
-# Base class for actions used by battlers.
-class Action:
-    def __init__(self, name:str) -> None:
-        self.name = name
-
-    # Base method used to execute this action, simply returns a copy of the
-    # target StatBlock that should be manipulated by implemented child classes.
-    def perform(self, user:StatBlock, target:StatBlock) -> StatBlock:
-        return target.clone()
-
-# Basic attack action, just reduces the target's health by the user's damage.
-class BasicAttack(Action):
-    def __init__(self) -> None:
-        super().__init__("basic attack")
-    
-    def perform(self, user:StatBlock, target:StatBlock) -> StatBlock:
-        new_target = super().perform(user, target)
-        new_target.health -= user.damage
-        return new_target
-
-BASIC_ATTACK = BasicAttack()
+class BattleEvent:
+    def __init__(self, action_type:BattleEventType, action:Action, battler:Battler, target:Battler, before:StatBlock, after:StatBlock) -> None:
+        self.type = action_type
+        self.action = action
+        self.battler = battler
+        self.target = target
+        self.before = before
+        self.after  = after
 
 class Battler(Emitter):
     def __init__(self, name:str, health:int, damage:int) -> None:
@@ -86,21 +51,33 @@ class Battler(Emitter):
     
     def __repr__(self) -> str:
         return f"Battler('{self.name}', {self.stats.health}, {self.stats.damage})"
+
+class Battler(Emitter):
+    def __init__(self, name:str, health:int, damage:int) -> None:
+        super().__init__()
         
-class BattleEventType(enum.IntEnum):
-    ATTACK = 0
+        self.events["act_start"] = []
+        self.events["act_end"] = []
 
-class BattleEvent:
-    def __init__(self, action_type:BattleEventType, action:Action, battler:Battler, target:Battler, before:StatBlock, after:StatBlock) -> None:
-        self.type = action_type
-        self.action = action
-        self.battler = battler
-        self.target = target
-        self.before = before
-        self.after  = after
-
-
+        self.name   = name
+        self.stats  = StatBlock(health, damage)
     
+    def act(self, allies:list, enemies:list) -> list[BattleEvent]:
+        self.emit("act_start")
+        target = enemies[0]
+        before = target.stats.clone()
+        target.stats = BASIC_ATTACK.perform(self.stats, target.stats)
+        after = target.stats.clone()
+        self.emit("act_end")
+        return [BattleEvent(BattleEventType.ATTACK, BASIC_ATTACK, self, target, before, after)]
+        
+
+    def __str__(self) -> str:
+        return self.name
+    
+    def __repr__(self) -> str:
+        return f"Battler('{self.name}', {self.stats.health}, {self.stats.damage})"
+
 class Battle(Emitter):
     """
     Represents a battle. Tracks current turn number, organizes turn order and facilitates combat turns.
@@ -154,8 +131,9 @@ class Battle(Emitter):
         
         for battle_event in battle_events:
             if battle_event.target.stats.health <= 0:
+                self.emit("battler_killed", battle_event)
                 t = battle_event.target
-                enemies.remove(t)
+                enemies.remove(t) # TODO: This assumes that the target will always be an enemy, should be updated to detect if the target ís an ally.
                 self.turn_order = deque(filter(lambda r: r[1] != t, self.turn_order))
     
         

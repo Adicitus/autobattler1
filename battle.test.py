@@ -1,7 +1,10 @@
 import unittest
 import random
 
-from battle import BASIC_ATTACK, Action, BattleEvent, BattleEventType, Battle, Battler, StatBlock
+
+from combat.stats import StatBlock
+from combat.actions import BASIC_ATTACK, Action
+from combat.battle import BattleEvent, BattleEventType, Battle, Battler
 
 class TestBattle(unittest.TestCase):
 
